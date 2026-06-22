@@ -1,8 +1,21 @@
+import mongoose from 'mongoose';
 import { Product } from '../models/productModel.js';
+
+const dbNotReadyMessage =
+    'Database not connected. Put your MongoDB Atlas URL in backend/.env as MONGODB_URI=... then restart the API.';
+
+const ensureDbConnected = (res) => {
+    if (mongoose.connection.readyState !== 1) {
+        res.status(503).json({ message: dbNotReadyMessage });
+        return false;
+    }
+    return true;
+};
 
 // GET all products
 export const getProducts = async (req, res, next) => {
     try {
+        if (!ensureDbConnected(res)) return;
         const products = await Product.find().sort({ createdAt: -1 });
         res.json(products);
     } catch (err) {
@@ -13,6 +26,7 @@ export const getProducts = async (req, res, next) => {
 // POST create a new product
 export const createProduct = async (req, res, next) => {
     try {
+        if (!ensureDbConnected(res)) return;
         const filename = req.file?.filename ?? null;
         const imageUrl = filename ? `/uploads/${filename}` : null;
         const { name, description, category, oldPrice, price } = req.body;
@@ -35,6 +49,7 @@ export const createProduct = async (req, res, next) => {
 // DELETE a product by ID
 export const deleteProduct = async (req, res, next) => {
     try {
+        if (!ensureDbConnected(res)) return;
         const deleted = await Product.findByIdAndDelete(req.params.id);
         if (!deleted) {
             res.status(404);

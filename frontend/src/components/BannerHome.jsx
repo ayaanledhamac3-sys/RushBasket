@@ -43,7 +43,7 @@ const BannerHome = ({ onSearch }) => {
           <div className="text-center md:text-left">
             <div className={bannerStyles.tag}>
               <span className="flex items-center text-sm sm:text-base">
-                <FiTruck className="mr-2" /> Free delivery on orders over ₹500
+                <FiTruck className="mr-2" /> Free delivery on orders over $500
               </span>
             </div>
 

@@ -3,6 +3,26 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiPlus, FiEdit, FiTrash2, FiPackage, FiFilter } from 'react-icons/fi';
 import { listItemsPageStyles as styles } from '../assets/adminStyles';
+import { API_BASE } from '../apiConfig';
+
+const resolveImageUrl = (item) => {
+  const rawImage = item?.imageUrl || item?.image;
+  if (!rawImage || typeof rawImage !== 'string') return null;
+
+  if (rawImage.startsWith('http://') || rawImage.startsWith('https://')) {
+    return rawImage;
+  }
+
+  if (rawImage.startsWith('/uploads/')) {
+    return `${API_BASE}${rawImage}`;
+  }
+
+  if (rawImage.startsWith('/')) {
+    return `${API_BASE}${rawImage}`;
+  }
+
+  return `${API_BASE}/uploads/${rawImage}`;
+};
 
 const StatsCard = ({ icon: Icon, color, border, label, value }) => (
   <div className={styles.statsCard(border)}>
@@ -27,14 +47,12 @@ export default function ListItemsPage() {
   useEffect(() => {
     const loadItems = async () => {
       try {
-        const response = await axios.get('http://localhost:4000/api/items');
+        const response = await axios.get(`${API_BASE}/api/items`);
         const data = response.data;
 
         const withUrls = data.map(item => ({
           ...item,
-          imageUrl: item.imageUrl
-            ? `http://localhost:4000${item.imageUrl}`
-            : null,
+          imageUrl: resolveImageUrl(item),
         }));
 
         const itemCategories = data.map(item => item.category);
@@ -64,7 +82,7 @@ export default function ListItemsPage() {
     if (!window.confirm('Delete this product?')) return;
   
     try {
-      await axios.delete(`http://localhost:4000/api/items/${id}`);
+      await axios.delete(`${API_BASE}/api/items/${id}`);
       setItems(prev => prev.filter(i => i._id !== id));
       setFilteredItems(prev => prev.filter(i => i._id !== id));
     } catch (err) {
@@ -157,6 +175,9 @@ export default function ListItemsPage() {
                               src={item.imageUrl}
                               alt={item.name}
                               className={styles.productImage}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           ) : (
                             <div className={styles.placeholderImage} />
@@ -178,11 +199,11 @@ export default function ListItemsPage() {
                       </td>
                       <td className={styles.tableDataCell}>
                         <div className={styles.price}>
-                          ₹{item.price.toFixed(2)}
+                          ${item.price.toFixed(2)}
                         </div>
                         {item.oldPrice > item.price && (
                           <div className={styles.oldPrice}>
-                            ₹{item.oldPrice.toFixed(2)}
+                            ${item.oldPrice.toFixed(2)}
                           </div>
                         )}
                       </td>

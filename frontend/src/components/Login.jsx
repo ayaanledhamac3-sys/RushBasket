@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import {
   FaArrowLeft,
@@ -8,29 +8,49 @@ import {
   FaEyeSlash,
   FaCheck,
 } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { loginStyles } from "../assets/dummyStyles";
 import Logout from "./Logout";
+import { API_BASE } from "../apiConfig";
+import { clearAuthSession, hasValidSession, persistAuthSession } from "../authSession";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 const Login = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(
-    Boolean(localStorage.getItem("authToken"))
+    hasValidSession()
   );
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    remember: false,
+    remember: true,
   });
-  const [showToast, setShowToast] = useState(false);
+  const [loginSuccessToast, setLoginSuccessToast] = useState(false);
+  const [banner, setBanner] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const resetBannerShown = useRef(false);
+
+  useEffect(() => {
+    if (!location.state?.resetOk || resetBannerShown.current) return undefined;
+    resetBannerShown.current = true;
+    setBanner("Password updated. Sign in with your new password.");
+    navigate(location.pathname, { replace: true, state: {} });
+    const t = setTimeout(() => setBanner(""), 5000);
+    return () => clearTimeout(t);
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     const handler = () => {
-      setIsAuthenticated(Boolean(localStorage.getItem("authToken")));
+      const valid = hasValidSession();
+      if (!valid && localStorage.getItem("authToken")) {
+        clearAuthSession();
+      }
+      setIsAuthenticated(valid);
     };
     window.addEventListener("authStateChanged", handler);
+    handler();
     return () => window.removeEventListener("authStateChanged", handler);
   }, []);
 
@@ -46,17 +66,48 @@ const Login = () => {
     }));
   };
 
+  const finishLogin = useCallback(
+    (token, user) => {
+      persistAuthSession(token, user);
+      setLoginSuccessToast(true);
+      window.dispatchEvent(new Event("authStateChanged"));
+      setTimeout(() => navigate("/dashboard"), 800);
+    },
+    [navigate]
+  );
+
+  const handleGoogleCredential = useCallback(
+    async (credential) => {
+      setError("");
+      try {
+        const response = await axios.post(
+          `${API_BASE}/api/user/google`,
+          { credential },
+          { headers: { "Content-Type": "application/json" } }
+        );
+        if (response.data.success && response.data.token) {
+          finishLogin(response.data.token, response.data.user);
+        } else {
+          setError(response.data.message || "Google sign-in failed");
+        }
+      } catch (err) {
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Google sign-in failed"
+        );
+      }
+    },
+    [finishLogin]
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!formData.remember) {
-      setError('You must agree to "Remember me" before signing in.');
-      return;
-    }
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/api/user/login",
+        `${API_BASE}/api/user/login`,
         {
           email: formData.email,
           password: formData.password,
@@ -64,25 +115,19 @@ const Login = () => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      if (response.data.success) {
-        const { token, user } = response.data;
-        // Persist token & user
-        localStorage.setItem("authToken", token);
-        localStorage.setItem("userData", JSON.stringify(user));
-
-        setShowToast(true);
-        window.dispatchEvent(new Event("authStateChanged"));
-
-        // After toast, redirect home
-        setTimeout(() => {
-          navigate("/");
-        }, 1000);
+      if (response.data.success && response.data.token) {
+        finishLogin(response.data.token, response.data.user);
+      } else if (response.data.requires2FA && response.data.otpRequestId) {
+        navigate("/verify-otp", {
+          state: {
+            otpRequestId: response.data.otpRequestId,
+            email: formData.email,
+          },
+        });
       } else {
-        // API responded with success: false
         setError(response.data.message || "Login failed");
       }
     } catch (err) {
-      // Network or server error
       if (err.response && err.response.data) {
         setError(err.response.data.message || "Login error");
       } else {
@@ -98,7 +143,13 @@ const Login = () => {
         Back to Home
       </Link>
 
-      {showToast && (
+      {banner && (
+        <div className={loginStyles.toast}>
+          <FaCheck className="mr-2" />
+          {banner}
+        </div>
+      )}
+      {loginSuccessToast && (
         <div className={loginStyles.toast}>
           <FaCheck className="mr-2" />
           Login successful!
@@ -115,6 +166,16 @@ const Login = () => {
         </div>
 
         <h2 className={loginStyles.title}>Welcome Back</h2>
+
+        <div className="mb-4">
+          <GoogleSignInButton onCredential={handleGoogleCredential} />
+        </div>
+
+        <div className="flex items-center gap-3 my-4 text-gray-500 text-sm">
+          <span className="flex-1 h-px bg-gray-600" />
+          or with email
+          <span className="flex-1 h-px bg-gray-600" />
+        </div>
 
         <form onSubmit={handleSubmit} className={loginStyles.form}>
           <div className={loginStyles.inputContainer}>
@@ -159,12 +220,11 @@ const Login = () => {
                 checked={formData.remember}
                 onChange={handleChange}
                 className={loginStyles.rememberCheckbox}
-                required
               />
-              Remember me
+              Keep me signed in
             </label>
-            <Link to="#" className={loginStyles.forgotLink}>
-              Forgot?
+            <Link to="/forgot-password" className={loginStyles.forgotLink}>
+              Forgot password?
             </Link>
           </div>
 
@@ -176,7 +236,7 @@ const Login = () => {
         </form>
 
         <p className={loginStyles.signupText}>
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link to="/signup" className={loginStyles.signupLink}>
             Sign Up
           </Link>

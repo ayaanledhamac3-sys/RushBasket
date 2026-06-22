@@ -1,7 +1,25 @@
 import Order from '../models/orderModel.js';
 import Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+const getStripeClient = () => {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) return null;
+    return Stripe(secretKey);
+};
+
+/** Base URL of the customer frontend (must match the origin users use after Stripe redirect). */
+const getFrontendBaseUrl = () =>
+    (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+/** Checkout payment methods; default to card for USD checkout. */
+const getCheckoutPaymentMethodTypes = () => {
+    const raw = process.env.STRIPE_PAYMENT_METHOD_TYPES || 'card';
+    return raw
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+};
 
 // Create a new order
 export const createOrder = async (req, res) => {
@@ -26,25 +44,55 @@ export const createOrder = async (req, res) => {
         let newOrder;
 
         if (normalizedPM === 'Online Payment') {
-            const session = await stripe.checkout.sessions.create({
-                payment_method_types: ['card'],
-                mode: 'payment',
-                line_items: orderItems.map(o => ({
+            const stripe = getStripeClient();
+            if (!stripe) {
+                return res.status(500).json({
+                    message:
+                        'Stripe is not configured. Add STRIPE_SECRET_KEY to backend/.env (use sk_live_… for real charges, sk_test_… for test).'
+                });
+            }
+
+            const frontendBase = getFrontendBaseUrl();
+            const subtotalCents = orderItems.reduce(
+                (sum, o) =>
+                    sum + Math.round(Number(o.price) * 100) * Number(o.quantity),
+                0
+            );
+            const taxCents = Math.round(subtotalCents * 0.05);
+
+            const line_items = orderItems.map(o => ({
+                price_data: {
+                    currency: 'usd',
+                    product_data: { name: o.name },
+                    unit_amount: Math.round(Number(o.price) * 100)
+                },
+                quantity: Number(o.quantity)
+            }));
+
+            if (taxCents > 0) {
+                line_items.push({
                     price_data: {
-                        currency: 'inr',
-                        product_data: { name: o.name },
-                        unit_amount: Math.round(o.price * 100)
+                        currency: 'usd',
+                        product_data: { name: 'Tax (5%)' },
+                        unit_amount: taxCents
                     },
-                    quantity: o.quantity
-                })),
+                    quantity: 1
+                });
+            }
+
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: getCheckoutPaymentMethodTypes(),
+                mode: 'payment',
+                line_items,
                 customer_email: customer.email,
-                success_url: `${process.env.FRONTEND_URL}/myorders/verify?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `${process.env.FRONTEND_URL}/checkout?payment_status=cancel`,
+                success_url: `${frontendBase}/myorders/verify?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${frontendBase}/checkout?payment_status=cancel`,
                 metadata: { orderId }
             });
 
             newOrder = new Order({
                 orderId,
+                orderNumber: orderId,
                 user: req.user._id,
                 customer,
                 items: orderItems,
@@ -64,6 +112,7 @@ export const createOrder = async (req, res) => {
         // Cash on Delivery
         newOrder = new Order({
             orderId,
+            orderNumber: orderId,
             user: req.user._id,
             customer,
             items: orderItems,
@@ -78,6 +127,10 @@ export const createOrder = async (req, res) => {
         res.status(201).json({ order: newOrder, checkoutUrl: null });
     } catch (err) {
         console.error('createOrder error:', err);
+        // Handle Mongoose validation errors with 400 so client can show details
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ error: err.message });
+        }
         res.status(500).json({ message: 'Server Error', error: err.message });
     }
 };
@@ -85,6 +138,13 @@ export const createOrder = async (req, res) => {
 // Confirm Stripe payment
 export const confirmPayment = async (req, res) => {
     try {
+        const stripe = getStripeClient();
+        if (!stripe) {
+            return res.status(500).json({
+                message: 'Stripe is not configured on server'
+            });
+        }
+
         const { session_id } = req.query;
         if (!session_id) return res.status(400).json({ message: 'session_id required' });
 

@@ -13,7 +13,7 @@ const ContactUs = () => {
   const [showToast, setShowToast] = useState(false);
 
   // Replace with your WhatsApp number (with country code, no '+' or dashes)
-  const whatsappNumber = '8299431275';
+  const whatsappNumber = '6387172424';
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -90,7 +90,7 @@ const ContactUs = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className={contactStyles.formInput}
-                  placeholder="John Doe"
+                  placeholder="Ayaanle Dhamac"
                   required
                 />
               </div>
@@ -108,7 +108,7 @@ const ContactUs = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className={contactStyles.formInput}
-                  placeholder="john@example.com"
+                  placeholder="ayaanle@example.com"
                   required
                 />
               </div>

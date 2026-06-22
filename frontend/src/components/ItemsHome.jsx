@@ -7,6 +7,7 @@ import BannerHome from "../components/BannerHome";
 import { itemsHomeStyles } from "../assets/dummyStyles.js";
 
 import axios from 'axios'
+import { API_BASE } from '../apiConfig';
 
 const ItemsHome = () => {
   const [products, setProducts] = useState([]);
@@ -19,7 +20,7 @@ const ItemsHome = () => {
   }, [activeCategory]);
 
   useEffect(() => {
-    axios.get("http://localhost:4000/api/items")
+    axios.get(`${API_BASE}/api/items`)
       .then(res => {
         const normalized = res.data.map(p => ({
           ...p,
@@ -200,7 +201,7 @@ const ItemsHome = () => {
                   >
                     <div className={itemsHomeStyles.imageContainer}>
                       <img
-                        src={`http://localhost:4000${product.imageUrl}`}
+                        src={`${API_BASE}${product.imageUrl}`}
                         alt={product.name}
                         className={itemsHomeStyles.productImage}
                         onError={(e) => {
@@ -220,10 +221,10 @@ const ItemsHome = () => {
                       <div className={itemsHomeStyles.priceContainer}>
                         <div>
                           <p className={itemsHomeStyles.currentPrice}>
-                            ₹{product.price.toFixed(2)}
+                            ${product.price.toFixed(2)}
                           </p>
                           <span className={itemsHomeStyles.oldPrice}>
-                            ₹{(product.price * 1.2).toFixed(2)}
+                            ${(product.price * 1.2).toFixed(2)}
                           </span>
                         </div>
 

@@ -5,6 +5,7 @@ import { FiArrowLeft, FiCheck, FiCreditCard, FiTruck, FiUser, FiPackage } from '
 import { useCart } from '../CartContext';
 import { checkoutStyles } from '../assets/dummyStyles';
 import axios from 'axios';
+import { API_BASE } from '../apiConfig';
 
 const CheckoutPage = () => {
   const { cart, getCartTotal, clearCart } = useCart();
@@ -20,6 +21,7 @@ const CheckoutPage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -29,13 +31,14 @@ const CheckoutPage = () => {
 
   const validateForm = () => {
     const newErrors = {};
+    const normalizedPhone = formData.phone.replace(/[^\d]/g, '');
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       newErrors.email = 'Invalid email format';
     if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-    else if (!/^\d{10}$/.test(formData.phone))
-      newErrors.phone = 'Invalid phone number';
+    else if (normalizedPhone.length < 10 || normalizedPhone.length > 15)
+      newErrors.phone = 'Invalid phone number (use 10-15 digits, country code allowed)';
     if (!formData.address.trim()) newErrors.address = 'Address is required';
 
     setErrors(newErrors);
@@ -45,6 +48,7 @@ const CheckoutPage = () => {
   const handleSubmit = async e => {
     e.preventDefault();
     if (!validateForm()) return;
+    setSubmitError('');
     setIsSubmitting(true);
 
     const order = {
@@ -68,8 +72,13 @@ const CheckoutPage = () => {
 
     try {
       const token = localStorage.getItem('authToken');
+      if (!token) {
+        setSubmitError('Please log in first to place an order.');
+        navigate('/login');
+        return;
+      }
       const res = await axios.post(
-        'http://localhost:4000/api/orders',
+        `${API_BASE}/api/orders`,
         order,
         {
           headers: {
@@ -95,7 +104,13 @@ const CheckoutPage = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to place order. Please try again.');
+      const apiMessage = err.response?.data?.error || err.response?.data?.message;
+      if (err.response?.status === 401) {
+        setSubmitError('Session expired. Please log in again.');
+        navigate('/login');
+      } else {
+        setSubmitError(apiMessage || 'Failed to place order. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -269,7 +284,7 @@ const CheckoutPage = () => {
                       Online Payment
                     </span>
                     <span className="block text-sm text-emerald-400">
-                      Pay now via card/UPI
+                      Pay now via card
                     </span>
                   </div>
                 </label>
@@ -292,7 +307,7 @@ const CheckoutPage = () => {
                     <div className={checkoutStyles.cartImage}>
                       {item.imageUrl ? (
                         <img
-                          src={`http://localhost:4000${item.imageUrl}`}
+                          src={`${API_BASE}${item.imageUrl}`}
                           alt={item.name}
                           className="w-full h-full object-cover rounded"
                           onError={e => {
@@ -310,10 +325,10 @@ const CheckoutPage = () => {
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-emerald-400">
-                          ₹{item.price.toFixed(2)} × {item.quantity}
+                          ${item.price.toFixed(2)} × {item.quantity}
                         </span>
                         <span className="font-medium text-emerald-100">
-                          ₹{(item.price * item.quantity).toFixed(2)}
+                          ${(item.price * item.quantity).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -325,7 +340,7 @@ const CheckoutPage = () => {
               <div className="flex justify-between">
                 <span className="text-emerald-300">Subtotal</span>
                 <span className="font-medium text-emerald-100">
-                  ₹{total.toFixed(2)}
+                  ${total.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -335,7 +350,7 @@ const CheckoutPage = () => {
               <div className="flex justify-between">
                 <span className="text-emerald-300">Tax (5%)</span>
                 <span className="font-medium text-emerald-100">
-                  ₹{tax.toFixed(2)}
+                  ${tax.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between pt-3 mt-3 border-t border-emerald-700/50">
@@ -343,7 +358,7 @@ const CheckoutPage = () => {
                   Total
                 </span>
                 <span className="text-lg font-bold text-emerald-300">
-                  ₹{grandTotal.toFixed(2)}
+                  ${grandTotal.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -362,6 +377,9 @@ const CheckoutPage = () => {
               )}
               {isSubmitting ? 'Processing Order' : 'Place Order'}
             </button>
+            {submitError && (
+              <p className="mt-3 text-sm text-red-400 text-center">{submitError}</p>
+            )}
             <p className="mt-4 text-center text-sm text-emerald-400">
               By placing your order you agree to our{' '}
               <a href="#" className={checkoutStyles.link}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -9,8 +9,12 @@ import {
   FaCheck,
   FaArrowLeft,
   FaEnvelope,
+  FaPhone,
 } from 'react-icons/fa';
 import { signupStyles } from '../assets/dummyStyles';
+import { API_BASE } from '../apiConfig';
+import { persistAuthSession } from '../authSession';
+import GoogleSignInButton from './GoogleSignInButton';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -18,31 +22,34 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
     remember: false,
   });
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (showToast) {
       const timer = setTimeout(() => {
         setShowToast(false);
-        navigate('/login');
-      }, 2000);
+        navigate('/dashboard');
+      }, 1200);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [showToast, navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (apiError) {
       setApiError('');
@@ -53,69 +60,110 @@ const Signup = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      newErrors.email = 'Invalid email format';
     if (!formData.password) newErrors.password = 'Password is required';
-    if (!formData.remember) newErrors.remember = 'You must agree to Terms';
-
+    else if (formData.password.length < 8)
+      newErrors.password = 'Password must be at least 8 characters';
+    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
+    else if (!/^\+[1-9]\d{7,14}$/.test(formData.phone.trim()))
+      newErrors.phone = 'Use international format e.g. +2547XXXXXXXX';
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      setApiError('Please fix the highlighted fields and try again.');
+      return false;
+    }
+    setApiError('');
+    return true;
   };
 
   const togglePasswordVisibility = () => {
-    setShowPassword(v => !v);
+    setShowPassword((v) => !v);
   };
+
+  const handleGoogleCredential = useCallback(async (credential) => {
+    setApiError('');
+    try {
+      const res = await axios.post(
+        `${API_BASE}/api/user/google`,
+        { credential },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      if (res.data.success && res.data.token) {
+        persistAuthSession(res.data.token, res.data.user);
+        setShowToast(true);
+        window.dispatchEvent(new Event('authStateChanged'));
+      } else {
+        setApiError(res.data.message || 'Google sign-in failed');
+      }
+    } catch (err) {
+      setApiError(
+        err.response?.data?.message || err.message || 'Google sign-in failed'
+      );
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!validate()) return;
 
+    setIsSubmitting(true);
+    setApiError('');
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      password: formData.password,
+    };
+
     try {
+      console.log('[signup] Sending register request', payload);
       const res = await axios.post(
-        'http://localhost:4000/api/user/register',
-        {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        },
-        { headers: { 'Content-Type': 'application/json' } }
+        `${API_BASE}/api/user/register`,
+        payload,
+        { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
       );
 
-      if (res.data.success) {
+      if (res.data.success && res.data.token) {
+        persistAuthSession(res.data.token, res.data.user);
         setShowToast(true);
+        window.dispatchEvent(new Event('authStateChanged'));
       } else {
         setApiError(res.data.message || 'Registration failed');
       }
     } catch (err) {
+      console.error('[signup] Registration request failed', err);
       if (err.response && err.response.data) {
-        setApiError(err.response.data.message);
+        setApiError(err.response.data.message || 'Registration failed');
+      } else if (err.code === 'ECONNABORTED') {
+        setApiError('Request timed out. Make sure backend is running on port 5000.');
       } else {
         setApiError('Server error');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className={signupStyles.page}>
-      {/* Back to Login */}
       <Link to="/login" className={signupStyles.backLink}>
         <FaArrowLeft className="mr-2" />
         Back to Login
       </Link>
 
-      {/* Toast Notification */}
       {showToast && (
         <div className={signupStyles.toast}>
           <FaCheck className="mr-2" />
-          Account created successfully!
+          You&apos;re signed in!
         </div>
       )}
 
-      {/* API Error */}
-      {apiError && <p className={signupStyles.error}>{apiError}</p>}
-
-      {/* Signup Card */}
       <div className={signupStyles.signupCard}>
-        {/* Logo Avatar */}
+        {apiError && (
+          <p className={`${signupStyles.error} text-center mb-2`}>{apiError}</p>
+        )}
         <div className={signupStyles.logoContainer}>
           <div className={signupStyles.logoOuter}>
             <div className={signupStyles.logoInner}>
@@ -126,8 +174,17 @@ const Signup = () => {
 
         <h2 className={signupStyles.title}>Create Account</h2>
 
-        <form onSubmit={handleSubmit} className={signupStyles.form}>
-          {/* Name Field */}
+        <div className="mb-4">
+          <GoogleSignInButton onCredential={handleGoogleCredential} />
+        </div>
+
+        <div className="flex items-center gap-3 my-4 text-gray-500 text-sm">
+          <span className="flex-1 h-px bg-gray-600" />
+          or with email
+          <span className="flex-1 h-px bg-gray-600" />
+        </div>
+
+        <form onSubmit={handleSubmit} className={signupStyles.form} noValidate>
           <div className={signupStyles.inputContainer}>
             <FaUser className={signupStyles.inputIcon} />
             <input
@@ -141,7 +198,6 @@ const Signup = () => {
             {errors.name && <p className={signupStyles.error}>{errors.name}</p>}
           </div>
 
-          {/* Email Field */}
           <div className={signupStyles.inputContainer}>
             <FaEnvelope className={signupStyles.inputIcon} />
             <input
@@ -152,10 +208,24 @@ const Signup = () => {
               placeholder="Email Address"
               className={signupStyles.input}
             />
-            {errors.email && <p className={signupStyles.error}>{errors.email}</p>}
+            {errors.email && (
+              <p className={signupStyles.error}>{errors.email}</p>
+            )}
           </div>
 
-          {/* Password Field */}
+          <div className={signupStyles.inputContainer}>
+            <FaPhone className={signupStyles.inputIcon} />
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="Phone (e.g. +2547XXXXXXXX)"
+              className={signupStyles.input}
+            />
+            {errors.phone && <p className={signupStyles.error}>{errors.phone}</p>}
+          </div>
+
           <div className={signupStyles.inputContainer}>
             <FaLock className={signupStyles.inputIcon} />
             <input
@@ -163,7 +233,7 @@ const Signup = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Password"
+              placeholder="Password (min 8 characters)"
               className={signupStyles.passwordInput}
             />
             <button
@@ -174,10 +244,11 @@ const Signup = () => {
             >
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
-            {errors.password && <p className={signupStyles.error}>{errors.password}</p>}
+            {errors.password && (
+              <p className={signupStyles.error}>{errors.password}</p>
+            )}
           </div>
 
-          {/* Terms Agreement */}
           <div className={signupStyles.termsContainer}>
             <label className={signupStyles.termsLabel}>
               <input
@@ -189,11 +260,14 @@ const Signup = () => {
               />
               I agree to the Terms and Conditions
             </label>
-            {errors.remember && <p className={signupStyles.error}>{errors.remember}</p>}
           </div>
 
-          <button type="submit" className={signupStyles.submitButton}>
-            Sign Up
+          <button
+            type="submit"
+            className={signupStyles.submitButton}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 

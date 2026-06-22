@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCart } from '../CartContext';
+import { API_BASE } from '../apiConfig';
 
 const VerifyPaymentPage = () => {
     const { clearCart } = useCart();
@@ -27,7 +28,7 @@ const VerifyPaymentPage = () => {
         }
 
         axios
-            .get('http://localhost:4000/api/orders/confirm', {
+            .get(`${API_BASE}/api/orders/confirm`, {
                 params: { session_id },
                 headers: token
                     ? { Authorization: `Bearer ${token}` }

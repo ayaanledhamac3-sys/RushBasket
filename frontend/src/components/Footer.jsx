@@ -23,8 +23,8 @@ const Footer = () => {
   // Social media links with their respective URLs
   const socialLinks = [
     { 
-      icon: FaFacebookF, 
-      url: 'https://www.facebook.com/' 
+      icon: FaFacebookF,
+     url: "https://www.facebook.com/AyaanleDmc"
     },
     { 
       icon: FaTwitter, 
@@ -32,7 +32,7 @@ const Footer = () => {
     },
     { 
       icon: FaInstagram, 
-      url: 'https://www.instagram.com/' 
+      url: 'https://www.instagram.com/quraankrm80/' 
     },
     { 
       icon: FaYoutube, 
@@ -55,7 +55,7 @@ const Footer = () => {
           {/* Brand */}
           <div>
             <h2 className={footerStyles.brandTitle}>
-              RUSH<span className={footerStyles.brandSpan}>BASKET</span>
+              Adeeg<span className={footerStyles.brandSpan}>Organize</span>
             </h2>
             <p className={footerStyles.brandText}>
               Bringing you the freshest organic produce since 2010. Our mission is to deliver farm-fresh goodness straight to your doorstep.
@@ -104,7 +104,7 @@ const Footer = () => {
                   <FaMapMarkerAlt className={footerStyles.contactIcon} />
                 </div>
                 <div>
-                  <p>123 Organic Valley, Green City, GC 54321</p>
+                  <p>1567 KaaH Hyundai, new hargeisa, GC 54321, Somaliland</p>
                 </div>
               </li>
               <li className={footerStyles.contactItem}>
@@ -112,7 +112,7 @@ const Footer = () => {
                   <FaPhone className={footerStyles.contactIcon} />
                 </div>
                 <div>
-                  <p>+01 0894561230</p>
+                  <p>+252 638717242</p>
                 </div>
               </li>
               <li className={footerStyles.contactItem}>
@@ -120,7 +120,7 @@ const Footer = () => {
                   <FaEnvelope className={footerStyles.contactIcon} />
                 </div>
                 <div>
-                  <p>hexagonsservices@gmail.com</p>
+                  <p>Ayaanledmc80@gmail.com</p>
                 </div>
               </li>
             </ul>
@@ -177,12 +177,12 @@ const Footer = () => {
             <span className={footerStyles.attributionText}>
               Designed by{' '}
               <a
-                href="https://hexagondigitalservices.com"
+                href="Dhamac"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={footerStyles.attributionLink}
               >
-                Hexagon Digital Services
+                Dhamac Digital Services
               </a>
             </span>
           </div>

@@ -5,9 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../CartContext';
 import { groceryData } from '../assets/dummyDataItem';
 import { itemsPageStyles } from '../assets/dummyStyles';
-
-// Backend base URL
-const BACKEND_URL = 'http://localhost:4000';
+import { API_BASE } from '../apiConfig';
 
 const ProductCard = ({ item }) => {
   const { addToCart, removeFromCart, updateQuantity, cart } = useCart();
@@ -28,8 +26,8 @@ const ProductCard = ({ item }) => {
   let imgSrc = item.image;
   if (rawImage) {
     if (rawImage.startsWith('http')) imgSrc = rawImage;
-    else if (rawImage.startsWith('/')) imgSrc = `${BACKEND_URL}${rawImage}`;
-    else imgSrc = `${BACKEND_URL}/uploads/${rawImage}`;
+    else if (rawImage.startsWith('/')) imgSrc = `${API_BASE}${rawImage}`;
+    else imgSrc = `${API_BASE}/uploads/${rawImage}`;
   }
 
   return (
@@ -49,8 +47,8 @@ const ProductCard = ({ item }) => {
           {item.description || `Fresh organic ${item.name.toLowerCase()} sourced locally`}
         </p>
         <div className={itemsPageStyles.priceContainer}>
-          <span className={itemsPageStyles.currentPrice}>₹{item.price.toFixed(2)}</span>
-          <span className={itemsPageStyles.oldPrice}>₹{(item.price * 1.15).toFixed(2)}</span>
+          <span className={itemsPageStyles.currentPrice}>${item.price.toFixed(2)}</span>
+          <span className={itemsPageStyles.oldPrice}>${(item.price * 1.15).toFixed(2)}</span>
         </div>
         <div className="mt-3">
           {quantity > 0 ? (
@@ -90,7 +88,7 @@ const Items = () => {
   // Fetch from backend and override static data
   useEffect(() => {
     axios
-      .get(`${BACKEND_URL}/api/items`)
+      .get(`${API_BASE}/api/items`)
       .then(res => {
         const products = Array.isArray(res.data)
           ? res.data

@@ -12,6 +12,11 @@ const orderItemSchema = new mongoose.Schema({
 // Main schema
 const orderSchema = new mongoose.Schema({
     orderId: { type: String, unique: true, required: true },
+    // `orderNumber` kept for compatibility with older deployments that created
+    // a unique index named `orderNumber_1`. Populate it with the same value
+    // as `orderId` when creating orders to avoid inserting null into the
+    // unique index (which causes E11000 when multiple nulls exist).
+    orderNumber: { type: String, unique: true, sparse: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },       // link to logged‐in user
     customer: {
         name: { type: String, required: true },

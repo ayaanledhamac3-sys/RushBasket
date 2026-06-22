@@ -15,6 +15,7 @@ import { useCart } from '../CartContext';
 import logo from '../assets/logo.png';
 import { navbarStyles } from '../assets/dummyStyles';
 import { navItems } from '../assets/Dummy'
+import { clearAuthSession, hasValidSession } from '../authSession';
 
 export default function Navbar() {
   const location = useLocation();
@@ -29,7 +30,7 @@ export default function Navbar() {
 
   // Auth state
   const [isLoggedIn, setIsLoggedIn] = useState(
-    Boolean(localStorage.getItem('authToken'))
+    hasValidSession()
   );
 
   // Mobile menu ref
@@ -61,9 +62,14 @@ export default function Navbar() {
   // Listen for auth changes
   useEffect(() => {
     const handler = () => {
-      setIsLoggedIn(Boolean(localStorage.getItem('authToken')));
+      const valid = hasValidSession();
+      if (!valid && localStorage.getItem('authToken')) {
+        clearAuthSession();
+      }
+      setIsLoggedIn(valid);
     };
     window.addEventListener('authStateChanged', handler);
+    handler();
     return () => window.removeEventListener('authStateChanged', handler);
   }, []);
 
@@ -84,9 +90,7 @@ export default function Navbar() {
 
   // Logout handler
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    window.dispatchEvent(new Event('authStateChanged'));
+    clearAuthSession();
     navigate('/login');
   };
 
@@ -137,10 +141,10 @@ export default function Navbar() {
           <Link to="/" className={navbarStyles.logoLink}>
             <img
               src={logo}
-              alt="RushBasket Logo"
+              alt="AdeeG Organic  Logo"
               className={`${navbarStyles.logoImage} ${scrolled ? 'h-10 w-10' : 'h-12 w-12'}`}
             />
-            <span className={navbarStyles.logoText}>RushBasket</span>
+            <span className={navbarStyles.logoText}>AdeeG Organic</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -252,10 +256,10 @@ export default function Navbar() {
               <div className={navbarStyles.mobileLogo}>
                 <img
                   src={logo}
-                  alt="RushBasket Logo"
+                  alt="AdeeG Organic Market Logo"
                   className={navbarStyles.mobileLogoImage}
                 />
-                <span className={navbarStyles.mobileLogoText}>RushBasket</span>
+                <span className={navbarStyles.mobileLogoText}>AdeeG Organic Market</span>
 
               </div>
 

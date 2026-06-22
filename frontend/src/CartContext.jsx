@@ -1,6 +1,7 @@
 // src/CartContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE } from './apiConfig';
 
 const CartContext = createContext();
 
@@ -50,7 +51,7 @@ export const CartProvider = ({ children }) => {
   const fetchCart = async () => {
     try {
       const { data } = await axios.get(
-        'http://localhost:4000/api/cart',
+        `${API_BASE}/api/cart`,
         {
           ...getAuthHeader(),
           withCredentials: true,   // if you’re relying on cookies too
@@ -72,7 +73,7 @@ export const CartProvider = ({ children }) => {
 
   const refreshCart = async () => {
     try {
-      const { data } = await axios.get('http://localhost:4000/api/cart', getAuthHeader());
+      const { data } = await axios.get(`${API_BASE}/api/cart`, getAuthHeader());
       const rawItems = Array.isArray(data)
         ? data
         : Array.isArray(data.items)
@@ -87,7 +88,7 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (productId, quantity = 1) => {
     try {
       await axios.post(
-        'http://localhost:4000/api/cart',
+        `${API_BASE}/api/cart`,
         { productId, quantity },
         getAuthHeader()
       );
@@ -100,7 +101,7 @@ export const CartProvider = ({ children }) => {
   const updateQuantity = async (lineId, quantity) => {
     try {
       await axios.put(
-        `http://localhost:4000/api/cart/${lineId}`,
+        `${API_BASE}/api/cart/${lineId}`,
         { quantity },
         getAuthHeader()
       );
@@ -112,7 +113,7 @@ export const CartProvider = ({ children }) => {
 
   const removeFromCart = async (lineId) => {
     try {
-      await axios.delete(`http://localhost:4000/api/cart/${lineId}`, getAuthHeader());
+      await axios.delete(`${API_BASE}/api/cart/${lineId}`, getAuthHeader());
       await refreshCart();
     } catch (err) {
       console.error('Error removing from cart:', err);
@@ -121,7 +122,7 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
-      await axios.post('http://localhost:4000/api/cart/clear', {}, getAuthHeader());
+      await axios.post(`${API_BASE}/api/cart/clear`, {}, getAuthHeader());
       setCart([]);
     } catch (err) {
       console.error('Error clearing cart:', err);

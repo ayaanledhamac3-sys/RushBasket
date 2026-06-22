@@ -3,14 +3,15 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiCheck, FiX, FiTruck, FiPackage, FiCreditCard, FiUser, FiMapPin, FiPhone, FiMail, FiEdit } from 'react-icons/fi';
 import { ordersPageStyles as styles } from '../assets/adminStyles';
+import { API_BASE } from '../apiConfig';
 import { BsCurrencyRupee } from "react-icons/bs";
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [paymentFilter, setPaymentFilter] = useState('All');
+  const [searchTerm, _setSearchTerm] = useState('');
+  const [statusFilter, _setStatusFilter] = useState('All');
+  const [paymentFilter, _setPaymentFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -18,7 +19,12 @@ const OrdersPage = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data } = await axios.get('http://localhost:4000/api/orders');
+      const { data: raw } = await axios.get(`${API_BASE}/api/orders`);
+      const data = (raw || []).map(d => ({
+        ...d,
+        customer: d.customer || { name: '—', phone: '', email: '', address: '' },
+        items: Array.isArray(d.items) ? d.items : []
+      }));
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {
@@ -36,10 +42,10 @@ const OrdersPage = () => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(order =>
-        order.id.toLowerCase().includes(term) ||
-        order.customer.name.toLowerCase().includes(term) ||
-        order.customer.phone.includes(term) ||
-        (order.customer.email && order.customer.email.toLowerCase().includes(term)))
+        ((order.orderId || order._id || order.id || '').toString().toLowerCase().includes(term)) ||
+        (order.customer?.name && order.customer.name.toLowerCase().includes(term)) ||
+        (order.customer?.phone || '').includes(term) ||
+        (order.customer?.email && order.customer.email.toLowerCase().includes(term)))
     }
 
     if (statusFilter !== 'All') {
@@ -55,10 +61,7 @@ const OrdersPage = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      await axios.put(
-        `http://localhost:4000/api/orders/${orderId}`,
-        { status: newStatus }
-      );
+      await axios.put(`${API_BASE}/api/orders/${orderId}`, { status: newStatus });
       setOrders(prev =>
         prev.map(order =>
           order._id === orderId ? { ...order, status: newStatus } : order
@@ -192,8 +195,8 @@ const OrdersPage = () => {
                         {order.orderId}
                       </td>
                       <td className={styles.tableDataCell}>
-                        <div className="font-medium">{order.customer.name}</div>
-                        <div className="text-sm text-gray-500">{order.customer.phone}</div>
+                        <div className="font-medium">{order.customer?.name || '—'}</div>
+                        <div className="text-sm text-gray-500">{order.customer?.phone || '—'}</div>
                       </td>
                       <td className={`${styles.tableDataCell} text-sm text-gray-500`}>
                         {order.date}
@@ -202,7 +205,7 @@ const OrdersPage = () => {
                         {order.items.length} items
                       </td>
                       <td className={`${styles.tableDataCell} font-medium`}>
-                        ₹{order.total.toFixed(2)}
+                        ${order.total.toFixed(2)}
                       </td>
                       <td className={styles.tableDataCell}>
                         <span className={styles.statusBadge(order.status)}>
@@ -275,19 +278,19 @@ const OrdersPage = () => {
                     </h3>
                     <div className={styles.modalInfoBox}>
                       <div className="mb-3">
-                        <div className="font-medium">{selectedOrder.customer.name}</div>
+                        <div className="font-medium">{selectedOrder.customer?.name || '—'}</div>
                         <div className="text-gray-600 flex items-center mt-1">
                           <FiMail className="mr-2 flex-shrink-0" />
-                          {selectedOrder.customer.email || 'No email provided'}
+                          {selectedOrder.customer?.email || 'No email provided'}
                         </div>
                         <div className="text-gray-600 flex items-center mt-1">
                           <FiPhone className="mr-2 flex-shrink-0" />
-                          {selectedOrder.customer.phone}
+                          {selectedOrder.customer?.phone || '—'}
                         </div>
                       </div>
                       <div className="flex items-start mt-3">
                         <FiMapPin className="text-gray-500 mr-2 mt-1 flex-shrink-0" />
-                        <div className="text-gray-600">{selectedOrder.customer.address}</div>
+                        <div className="text-gray-600">{selectedOrder.customer?.address || '—'}</div>
                       </div>
                     </div>
                   </div>
@@ -344,26 +347,26 @@ const OrdersPage = () => {
                       Order Summary
                     </h3>
                     <div className={styles.modalOrderSummary}>
-                      {selectedOrder.items.map((item, index) => (
+                      {selectedOrder.items?.map((item, index) => (
                         <div
-                          key={item._id || index}
+                          key={item?._id || index}
                           className={styles.modalOrderItem(index, selectedOrder.items.length)}
                         >
-                          {item.imageUrl ? (
+                          {item?.imageUrl ? (
                             <img
-                              src={`http://localhost:4000${item.imageUrl}`}
-                              alt={item.name}
+                              src={`${API_BASE}${item.imageUrl}`}
+                              alt={item?.name || ''}
                               className={styles.modalOrderImage}
                             />
                           ) : (
                             <div className={styles.modalPlaceholderImage} />
                           )}
                           <div className="flex-grow">
-                            <div className="font-medium">{item.name}</div>
-                            <div className="text-gray-600">₹{item.price.toFixed(2)} × {item.quantity}</div>
+                            <div className="font-medium">{item?.name || '—'}</div>
+                            <div className="text-gray-600">${(item?.price || 0).toFixed(2)} × {item?.quantity || 0}</div>
                           </div>
                           <div className="font-medium">
-                            ₹{(item.price * item.quantity).toFixed(2)}
+                            ${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}
                           </div>
                         </div>
                       ))}
@@ -372,7 +375,7 @@ const OrdersPage = () => {
                       <div className={styles.modalOrderTotalSection}>
                         <div className={styles.modalOrderTotalRow}>
                           <span className="text-gray-600">Subtotal</span>
-                          <span className="font-medium">₹{selectedOrder.total.toFixed(2)}</span>
+                          <span className="font-medium">${selectedOrder.total.toFixed(2)}</span>
                         </div>
                         <div className={styles.modalOrderTotalRow}>
                           <span className="text-gray-600">Shipping</span>
@@ -380,12 +383,12 @@ const OrdersPage = () => {
                         </div>
                         <div className={styles.modalOrderTotalRow}>
                           <span className="text-gray-600">Tax (5%)</span>
-                          <span className="font-medium">₹{(selectedOrder.total * 0.05).toFixed(2)}</span>
+                          <span className="font-medium">${(selectedOrder.total * 0.05).toFixed(2)}</span>
                         </div>
                         <div className={styles.modalOrderTotalRowLast}>
                           <span className="text-lg font-bold">Total</span>
                           <span className="text-lg font-bold text-emerald-700">
-                            ₹{(selectedOrder.total * 1.05).toFixed(2)}
+                            ${(selectedOrder.total * 1.05).toFixed(2)}
                           </span>
                         </div>
                       </div>

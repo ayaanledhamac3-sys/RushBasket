@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { FiArrowLeft, FiTrash2, FiPlus, FiMinus } from 'react-icons/fi';
 import { useCart } from '../CartContext';
 import { cartStyles } from '../assets/dummyStyles';
+import { API_BASE } from '../apiConfig';
 
 const Cart = () => {
   const {
@@ -18,7 +19,7 @@ const Cart = () => {
   const getItemName  = item => item.name  ?? item.product?.name  ?? 'Unnamed item';
   const getItemImage = item => {
     const path = item.image   ?? item.product?.imageUrl ?? '';
-    return path ? `http://localhost:4000${path}` : '';
+    return path ? `${API_BASE}${path}` : '';
   };
 
   // Compute subtotal
@@ -102,7 +103,7 @@ const Cart = () => {
 
                     <h3 className={cartStyles.cartItemName}>{name}</h3>
                     <p className={cartStyles.cartItemPrice}>
-                      ₹{price.toFixed(2)}
+                      ${price.toFixed(2)}
                     </p>
 
                     <div className={cartStyles.cartItemQuantityContainer}>
@@ -144,7 +145,7 @@ const Cart = () => {
                 <div className={cartStyles.orderSummaryRow}>
                   <span className={cartStyles.orderSummaryLabel}>Subtotal</span>
                   <span className={cartStyles.orderSummaryValue}>
-                    ₹{subtotal.toFixed(2)}
+                    ${subtotal.toFixed(2)}
                   </span>
                 </div>
 
@@ -156,7 +157,7 @@ const Cart = () => {
                 <div className={cartStyles.orderSummaryRow}>
                   <span className={cartStyles.orderSummaryLabel}>Taxes (5%)</span>
                   <span className={cartStyles.orderSummaryValue}>
-                    ₹{(subtotal * 0.05).toFixed(2)}
+                    ${(subtotal * 0.05).toFixed(2)}
                   </span>
                 </div>
 
@@ -165,7 +166,7 @@ const Cart = () => {
                 <div className={cartStyles.orderSummaryTotalRow}>
                   <span className={cartStyles.orderSummaryTotalLabel}>Total</span>
                   <span className={cartStyles.orderSummaryTotalValue}>
-                    ₹{(subtotal * 1.05).toFixed(2)}
+                    ${(subtotal * 1.05).toFixed(2)}
                   </span>
                 </div>
               </div>

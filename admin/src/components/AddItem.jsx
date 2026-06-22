@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import axios from "axios";
 import { FiUpload, FiX, FiSave } from "react-icons/fi";
 import { addItemPageStyles as styles } from "../assets/adminStyles";
+import { API_BASE } from "../apiConfig";
 
 const initialFormState = {
   name: "",
@@ -61,7 +62,7 @@ export default function AddItemPage() {
         body.append("image", formData.image);
       }
 
-      const res = await axios.post("http://localhost:4000/api/items", body, {
+      const res = await axios.post(`${API_BASE}/api/items`, body, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -132,7 +133,7 @@ export default function AddItemPage() {
           {/* Prices */}
           <div className={styles.priceGrid}>
             <div>
-              <label className={styles.label}>Original Price (₹) *</label>
+              <label className={styles.label}>Original Price ($) *</label>
               <input
                 type="number"
                 name="oldPrice"
@@ -143,7 +144,7 @@ export default function AddItemPage() {
               />
             </div>
             <div>
-              <label className={styles.label}>Selling Price (₹) *</label>
+              <label className={styles.label}>Selling Price ($) *</label>
               <input
                 type="number"
                 name="price"
